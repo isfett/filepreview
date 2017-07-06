@@ -100,7 +100,19 @@ module.exports = {
             convertArgs.splice(0, 0, '-resize', options.width + 'x' + options.height);
           }
           if (options.quality) {
-            convertOtherArgs.splice(0, 0, '-quality', options.quality);
+            convertArgs.splice(0, 0, '-quality', options.quality);
+          }
+          if (options.colorspace)
+          {
+            convertArgs.splice(0, 0, '-colorspace', options.colorspace)
+          }
+          if (options.background)
+          {
+            convertArgs.splice(0, 0, '-background', options.background);
+          }
+          if (options.alpha)
+          {
+            convertArgs.splice(0, 0, '-alpha', options.alpha);
           }
           child_process.execFile('convert', convertArgs, function(error) {
             if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
@@ -120,12 +132,24 @@ module.exports = {
 
           child_process.execFile('unoconv', ['-e', 'PageRange=1', '-o', tempPDF, input], function(error) {
             if (error) return callback(error);
-            var convertOtherArgs = [tempPDF + '[0]', output];
+            var convertArgs = [tempPDF + '[0]', output];
             if (options.width > 0 && options.height > 0) {
-              convertOtherArgs.splice(0, 0, '-resize', options.width + 'x' + options.height);
+              convertArgs.splice(0, 0, '-resize', options.width + 'x' + options.height);
             }
             if (options.quality) {
-              convertOtherArgs.splice(0, 0, '-quality', options.quality);
+              convertArgs.splice(0, 0, '-quality', options.quality);
+            }
+            if (options.colorspace)
+            {
+              convertArgs.splice(0, 0, '-colorspace', options.colorspace)
+            }
+            if (options.background)
+            {
+              convertArgs.splice(0, 0, '-background', options.background);
+            }
+            if (options.alpha)
+            {
+              convertArgs.splice(0, 0, '-alpha', options.alpha);
             }
             child_process.execFile('convert', convertOtherArgs, function(error) {
               if (error) return callback(error);
