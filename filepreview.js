@@ -151,7 +151,7 @@ module.exports = {
             {
               convertArgs.splice(0, 0, '-alpha', options.alpha);
             }
-            child_process.execFile('convert', convertOtherArgs, function(error) {
+            child_process.execFile('convert', convertArgs, function(error) {
               if (error) return callback(error);
               fs.unlink(tempPDF, function(error) {
                 if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
