@@ -256,7 +256,7 @@ module.exports = {
       try {
         var ffmpegArgs = ['-y', '-i', input, '-vf', 'thumbnail', '-frames:v', '1', output];
         if (options.width > 0 && options.height > 0) {
-          ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height)
+          ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height + ':force_original_aspect_ratio=decrease')
         }
         child_process.execFileSync('ffmpeg', ffmpegArgs);
         if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {

@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/maxlabelle/filepreview.git"
+    "url": "git+https://github.com/isfett/filepreview.git"
   },
   "keywords": [
     "video",
@@ -20,7 +20,10 @@
     "visual",
     "document"
   ],
-  "author": "Maxime Labelle <Maxime.Labelle@owasp.org> (https://github.com/maxlabelle/filepreview)",
+  "author": [
+    "Maxime Labelle <Maxime.Labelle@owasp.org> (https://github.com/maxlabelle/filepreview)",
+    "Chris Stenke <chris@isfett.com> (https://github.com/isfett)"
+  ],
   "license": "BSD-4-Clause",
   "bugs": {
     "url": "https://github.com/maxlabelle/filepreview/issues"
