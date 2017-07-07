@@ -1,16 +1,18 @@
 /*
 
-  filepreview : A file preview generator for node.js
+ filepreview : A file preview generator for node.js
 
-*/
+ */
 
 var child_process = require('child_process');
 var crypto = require('crypto');
 var path = require('path');
 var fs = require('fs');
 var os = require('os');
-var mimedb = require('./db.json');
 var download = require('download-file')
+var ffmpeg = require('ffmpeg');
+var moment = require('moment');
+var mime = require('mime');
 
 module.exports = {
   generate: function(input_original, output, options, callback) {
@@ -30,36 +32,11 @@ module.exports = {
     var extInput = path.extname(input).toLowerCase().replace('.','');
 
     if (
-      extOutput != 'gif' &&
-      extOutput != 'jpg' &&
-      extOutput != 'png'
+        extOutput != 'gif' &&
+        extOutput != 'jpg' &&
+        extOutput != 'png'
     ) {
       return callback(true);
-    }
-
-    var fileType = 'other';
-
-    root:
-    for ( var index in mimedb ) {
-      if ( 'extensions' in mimedb[index] ) {
-        for ( var indexExt in mimedb[index].extensions ) {
-          if ( mimedb[index].extensions[indexExt] == extInput ) {
-            if ( index.split('/')[0] == 'image' ) {
-              fileType = 'image';
-            } else if ( index.split('/')[0] == 'video' ) {
-              fileType = 'video';
-            } else {
-              fileType = 'other';
-            }
-
-            break root;
-          }
-        }
-      }
-    }
-
-    if ( extInput == 'pdf' ) {
-      fileType = 'image';
     }
 
     if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
@@ -74,24 +51,67 @@ module.exports = {
       input = temp_input;
     }
 
+    var fileType = 'other';
+
+    var mimeType = mime.lookup(input);
+    if ( mimeType.split('/')[0] == 'image' ) {
+      fileType = 'image';
+    } else if ( mimeType.split('/')[0] == 'video' ) {
+      fileType = 'video';
+    } else {
+      fileType = 'other';
+    }
+
+    var imageArr = ['pdf', 'raw', 'cr2', 'dng', 'arw'];
+
+    if( imageArr.indexOf(extInput) !== -1)
+    {
+      fileType = 'image'
+    }
+
     fs.lstat(input, function(error, stats) {
       if (error) return callback(error);
       if (!stats.isFile()) {
         return callback(true);
       } else {
         if ( fileType == 'video' ) {
-          var ffmpegArgs = ['-y', '-i', input, '-vf', 'thumbnail', '-frames:v', '1', output];
-          if (options.width > 0 && options.height > 0) {
-            ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height);
-          }
-          child_process.execFile('ffmpeg', ffmpegArgs, function(error) {
-            if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
-              fs.unlinkSync(input);
-            }
+          var seconds = 0;
+          var fps = 0;
+          try {
+            var process = new ffmpeg(input);
+            process.then(function (video) {
+              // Video metadata
+              seconds = video.metadata.duration.seconds;
+              fps = video.metadata.video.fps;
+              // FFmpeg configuration
+              var frame = 6000000;
+              var second = frame/fps;
+              if(second > seconds)
+              {
+                second = seconds/2;
+              }
+              var selection = moment().startOf('day')
+                  .millisecond(second*1000)
+                  .format('HH:mm:ss.SSS');
+              var ffmpegArgs = ['-y', '-i', input, '-vf', 'thumbnail', '-frames:v', '1', '-ss', selection, output];
+              if (options.width > 0 && options.height > 0) {
+                ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height);
+              }
+              child_process.execFile('ffmpeg', ffmpegArgs, function(error) {
+                if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
+                  fs.unlinkSync(input);
+                }
 
-            if (error) return callback(error);
-            return callback();
-          });
+                if (error) return callback(error);
+                return callback();
+              });
+            }, function (err) {
+              console.log('Error: ' + err);
+            });
+          } catch (e) {
+            console.log(e.code);
+            console.log(e.msg);
+          }
         }
 
         if ( fileType == 'image' ) {
@@ -178,9 +198,9 @@ module.exports = {
     var extInput = path.extname(input).toLowerCase().replace('.','');
 
     if (
-      extOutput != 'gif' &&
-      extOutput != 'jpg' &&
-      extOutput != 'png'
+        extOutput != 'gif' &&
+        extOutput != 'jpg' &&
+        extOutput != 'png'
     ) {
       return false;
     }
@@ -188,23 +208,23 @@ module.exports = {
     var fileType = 'other';
 
     root:
-    for ( var index in mimedb ) {
-      if ( 'extensions' in mimedb[index] ) {
-        for ( var indexExt in mimedb[index].extensions ) {
-          if ( mimedb[index].extensions[indexExt] == extInput ) {
-            if ( index.split('/')[0] == 'image' ) {
-              fileType = 'image';
-            } else if ( index.split('/')[0] == 'video' ) {
-              fileType = 'video';
-            } else {
-              fileType = 'other';
-            }
+        for ( var index in mimedb ) {
+          if ( 'extensions' in mimedb[index] ) {
+            for ( var indexExt in mimedb[index].extensions ) {
+              if ( mimedb[index].extensions[indexExt] == extInput ) {
+                if ( index.split('/')[0] == 'image' ) {
+                  fileType = 'image';
+                } else if ( index.split('/')[0] == 'video' ) {
+                  fileType = 'video';
+                } else {
+                  fileType = 'other';
+                }
 
-            break root;
+                break root;
+              }
+            }
           }
         }
-      }
-    }
 
     if ( extInput == 'pdf' ) {
       fileType = 'image';
@@ -223,13 +243,13 @@ module.exports = {
     }
 
     try {
-        stats = fs.lstatSync(input);
+      stats = fs.lstatSync(input);
 
-        if (!stats.isFile()) {
-          return false;
-        }
-    } catch (e) {
+      if (!stats.isFile()) {
         return false;
+      }
+    } catch (e) {
+      return false;
     }
 
     if ( fileType == 'video' ) {
