@@ -28,6 +28,10 @@
   "homepage": "https://github.com/maxlabelle/filepreview#readme",
   "dependencies": {
     "download-file": "^0.1.5",
-    "synchronize": "^2.0.0"
+    "synchronize": "^2.0.0",
+    "ffmpeg": "0.0.4",
+    "mime": "^1.3.6",
+    "moment": "^2.18.1",
+    "crypto": "0.0.3"
   }
 }
