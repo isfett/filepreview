@@ -84,7 +84,11 @@ module.exports = {
               seconds = video.metadata.duration.seconds;
               fps = video.metadata.video.fps;
               // FFmpeg configuration
-              var frame = 6000000;
+              var frame = 100;
+              if(options.frame)
+              {
+                frame = options.frame;
+              }
               var second = frame/fps;
               if(second > seconds)
               {
@@ -95,10 +99,10 @@ module.exports = {
                   .format('HH:mm:ss.SSS');
               var ffmpegArgs = ['-y', '-i', input, '-vf', 'thumbnail', '-frames:v', '1', '-ss', selection, output];
               if (options.width > 0 && options.height > 0) {
-                ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height);
+                ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height + ':force_original_aspect_ratio=decrease' );
               }
               child_process.execFile('ffmpeg', ffmpegArgs, function(error) {
-                if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
+                if(options.delete) {
                   fs.unlinkSync(input);
                 }
 
@@ -135,7 +139,7 @@ module.exports = {
             convertArgs.splice(0, 0, '-alpha', options.alpha);
           }
           child_process.execFile('convert', convertArgs, function(error) {
-            if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
+            if(options.delete) {
               fs.unlinkSync(input);
             }
             if (error) return callback(error);
@@ -174,7 +178,7 @@ module.exports = {
             child_process.execFile('convert', convertArgs, function(error) {
               if (error) return callback(error);
               fs.unlink(tempPDF, function(error) {
-                if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
+                if(options.delete) {
                   fs.unlinkSync(input);
                 }
                 if (error) return callback(error);
@@ -205,29 +209,23 @@ module.exports = {
       return false;
     }
 
+
     var fileType = 'other';
 
-    root:
-        for ( var index in mimedb ) {
-          if ( 'extensions' in mimedb[index] ) {
-            for ( var indexExt in mimedb[index].extensions ) {
-              if ( mimedb[index].extensions[indexExt] == extInput ) {
-                if ( index.split('/')[0] == 'image' ) {
-                  fileType = 'image';
-                } else if ( index.split('/')[0] == 'video' ) {
-                  fileType = 'video';
-                } else {
-                  fileType = 'other';
-                }
-
-                break root;
-              }
-            }
-          }
-        }
-
-    if ( extInput == 'pdf' ) {
+    var mimeType = mime.lookup(input);
+    if ( mimeType.split('/')[0] == 'image' ) {
       fileType = 'image';
+    } else if ( mimeType.split('/')[0] == 'video' ) {
+      fileType = 'video';
+    } else {
+      fileType = 'other';
+    }
+
+    var imageArr = ['pdf', 'raw', 'cr2', 'dng', 'arw'];
+
+    if( imageArr.indexOf(extInput) !== -1)
+    {
+      fileType = 'image'
     }
 
     if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
@@ -253,18 +251,44 @@ module.exports = {
     }
 
     if ( fileType == 'video' ) {
+      var seconds = 0;
+      var fps = 0;
       try {
-        var ffmpegArgs = ['-y', '-i', input, '-vf', 'thumbnail', '-frames:v', '1', output];
-        if (options.width > 0 && options.height > 0) {
-          ffmpegArgs.splice(4, 1, 'thumbnail,scale=w=' + options.width + ':h=' + options.height + ':force_original_aspect_ratio=decrease')
-        }
-        child_process.execFileSync('ffmpeg', ffmpegArgs);
-        if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
-          fs.unlinkSync(input);
-        }
-        return true;
+        var process = new ffmpeg(input);
+        process.then(function (video) {
+          // Video metadata
+          seconds = video.metadata.duration.seconds;
+          fps = video.metadata.video.fps;
+          // FFmpeg configuration
+          var frame = 100;
+          if(options.frame)
+          {
+            frame = options.frame;
+          }
+          var second = frame/fps;
+          if(second > seconds)
+          {
+            second = seconds/2;
+          }
+          var selection = moment().startOf('day')
+              .millisecond(second*1000)
+              .format('HH:mm:ss.SSS');
+          var ffmpegArgs = ['-y', '-i', input, '-vf', 'thumbnail', '-frames:v', '1', '-ss', selection, output];
+          if (options.width > 0 && options.height > 0) {
+            ffmpegArgs.splice(4, 1, 'thumbnail,scale=' + options.width + ':' + options.height + ':force_original_aspect_ratio=decrease' );
+          }
+          child_process.execFile('ffmpeg', ffmpegArgs, function(error) {
+            if(options.delete)
+            {
+              fs.unlinkSync(input);
+            }
+          });
+          return true;
+        }, function (err) {
+          return false
+        });
       } catch (e) {
-        return false;
+        return false
       }
     }
 
@@ -275,14 +299,28 @@ module.exports = {
           convertArgs.splice(0, 0, '-resize', options.width + 'x' + options.height);
         }
         if (options.quality) {
-          convertOtherArgs.splice(0, 0, '-quality', options.quality);
+          convertArgs.splice(0, 0, '-quality', options.quality);
         }
-        child_process.execFileSync('convert', convertArgs);
-        if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
-          fs.unlinkSync(input);
+        if (options.colorspace)
+        {
+          convertArgs.splice(0, 0, '-colorspace', options.colorspace)
         }
-        return true;
-      } catch (e) {
+        if (options.background)
+        {
+          convertArgs.splice(0, 0, '-background', options.background);
+        }
+        if (options.alpha)
+        {
+          convertArgs.splice(0, 0, '-alpha', options.alpha);
+        }
+        child_process.execFile('convert', convertArgs, function(error) {
+          if(options.delete)
+          {
+            fs.unlinkSync(input);
+          }
+          return true;
+        });
+      } catch(e) {
         return false;
       }
     }
@@ -297,17 +335,32 @@ module.exports = {
 
         child_process.execFileSync('unoconv', ['-e', 'PageRange=1', '-o', tempPDF, input]);
 
-        var convertOtherArgs = [tempPDF + '[0]', output];
+        var convertArgs = [tempPDF + '[0]', output];
         if (options.width > 0 && options.height > 0) {
-          convertOtherArgs.splice(0, 0, '-resize', options.width + 'x' + options.height);
+          convertArgs.splice(0, 0, '-resize', options.width + 'x' + options.height);
         }
         if (options.quality) {
-          convertOtherArgs.splice(0, 0, '-quality', options.quality);
+          convertArgs.splice(0, 0, '-quality', options.quality);
         }
-        child_process.execFileSync('convert', convertOtherArgs);
+        if (options.colorspace)
+        {
+          convertArgs.splice(0, 0, '-colorspace', options.colorspace)
+        }
+        if (options.background)
+        {
+          convertArgs.splice(0, 0, '-background', options.background);
+        }
+        if (options.alpha)
+        {
+          convertArgs.splice(0, 0, '-alpha', options.alpha);
+        }
+        child_process.execFileSync('convert', convertArgs);
         fs.unlinkSync(tempPDF);
         if (input_original.indexOf("http://") == 0 || input_original.indexOf("https://") == 0) {
-          fs.unlinkSync(input);
+          if(options.delete)
+          {
+            fs.unlinkSync(input);
+          }
         }
         return true;
       } catch (e) {
